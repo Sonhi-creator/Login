@@ -7,6 +7,8 @@ from forms.loginform import LoginForm
 from forms.login import LoginForm1
 from forms.register_form import RegisterForm
 from flask_login import LoginManager, login_user
+from forms.job_form import JobForm
+from flask import abort
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -243,6 +245,38 @@ def logs():
     #                                (User.position.notlike("%engineer%"))).all()
     jobs = sess.query(Jobs).all()
     return render_template('table_logs.html', jobs=jobs)
+
+
+@app.route('/job_delete/<int:id>')
+def delete_job(id):
+    sess = db_session.create_session()
+    job = sess.query(Jobs).filter(Jobs.id == id).first()
+    if job:
+        sess.delete(job)
+        sess.commit()
+    else:
+        abort(404)
+    return redirect('/logs')
+
+
+@app.route("/new_job", methods=['GET', 'POST'])
+def new_job():
+    form = JobForm()
+    if form.validate_on_submit():
+        sess = db_session.create_session()
+        if sess.query(Jobs).filter(Jobs.job == form.job.data).first():
+            return render_template('add_job.html', form=form, message='Такая работа существует!')
+        job = Jobs(
+            job=form.job.data,
+            team_leader=form.team_leader.data,
+            work_size=form.work_size.data,
+            collaborators=form.collaborators.data,
+            is_finished=form.is_finished.data
+        )
+        sess.add(job)
+        sess.commit()
+        return redirect('/logs')
+    return render_template('add_job.html', form=form)
 
 
 @app.route('/register', methods=['GET', 'POST'])
